@@ -1,6 +1,10 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import { exec, execSync } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 
 type ActivityBuffer = {
@@ -15,13 +19,15 @@ let activityBuffer: ActivityBuffer = {
 	linesChanged: 0
 };
 
+let gitInProgress = false;
+
 const FLUSH_INTERVAL_MS = 30 * 1000; // dev mode
 
 function getRepoPath(context: vscode.ExtensionContext) {
 	return path.join(context.globalStorageUri.fsPath, 'activity-repo');
 }
 
-import { execSync } from 'child_process';
+
 
 function ensureRepoCloned(context: vscode.ExtensionContext) {
 	const repoPath = getRepoPath(context);
@@ -152,47 +158,43 @@ function flushActivity(context: vscode.ExtensionContext) {
 		linesChanged: 0
 	};
 
-	commitAndPush(getRepoPath(context));
+	void commitAndPush(getRepoPath(context));
 }
 
 
-function commitAndPush(repoPath: string) {
+async function commitAndPush(repoPath: string) {
+	if (gitInProgress) {
+		return;
+	}
+
+	gitInProgress = true;
+
 	try {
-		if (!hasGitChanges(repoPath)) {
+		const { stdout } = await execAsync('git status --porcelain', {
+			cwd: repoPath
+		});
+
+		if (!stdout.trim()) {
 			return;
 		}
 
-		execSync('git add .', { cwd: repoPath });
+		await execAsync('git add .', { cwd: repoPath });
 
-		execSync(
-			`git commit -m "activity: coding snapshot"`,
+		await execAsync(
+			'git commit -m "activity: coding snapshot"',
 			{ cwd: repoPath }
 		);
 
-		execSync('git push', { cwd: repoPath });
+		await execAsync('git push', { cwd: repoPath });
 
 		vscode.window.setStatusBarMessage(
-			`CodePulse pushed to GitHub`,
+			'CodePulse pushed to GitHub',
 			3000
 		);
-
 	} catch (err: any) {
-		vscode.window.showWarningMessage(
-			`CodePulse git error: ${err.message}`
-		);
-	}
-}
-
-
-
-function hasGitChanges(repoPath: string): boolean {
-	try {
-		const output = execSync('git status --porcelain', {
-			cwd: repoPath
-		}).toString();
-
-		return output.trim().length > 0;
-	} catch {
-		return false;
+		// Silent failure is intentional
+		console.warn('CodePulse git error:', err.message);
+	} finally {
+		gitInProgress = false;
 	}
 }
