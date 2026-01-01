@@ -1,4 +1,7 @@
 import * as vscode from 'vscode';
+import * as fs from 'fs';
+import * as path from 'path';
+
 
 type ActivityBuffer = {
 	files: Set<string>;
@@ -41,7 +44,8 @@ export function activate(context: vscode.ExtensionContext) {
 		);
 	});
 
-	const interval = setInterval(flushActivity, FLUSH_INTERVAL_MS);
+	const interval = setInterval(() => flushActivity(context), FLUSH_INTERVAL_MS);
+
 
 	context.subscriptions.push({
 		dispose: () => clearInterval(interval)
@@ -55,7 +59,7 @@ export function activate(context: vscode.ExtensionContext) {
 export function deactivate() { }
 
 
-function flushActivity() {
+function flushActivity(context: vscode.ExtensionContext) {
 	if (
 		activityBuffer.files.size === 0 &&
 		activityBuffer.linesChanged === 0
@@ -63,15 +67,46 @@ function flushActivity() {
 		return;
 	}
 
+	const now = new Date();
+
+	const snapshot = {
+		timestamp: now.toISOString(),
+		filesTouched: activityBuffer.files.size,
+		languages: Array.from(activityBuffer.languages),
+		linesChanged: activityBuffer.linesChanged
+	};
+
+	const baseDir = context.globalStorageUri.fsPath;
+
+	const dirPath = path.join(
+		baseDir,
+		now.getFullYear().toString(),
+		String(now.getMonth() + 1).padStart(2, '0'),
+		String(now.getDate()).padStart(2, '0')
+	);
+
+	fs.mkdirSync(dirPath, { recursive: true });
+
+	const fileName = `${String(now.getHours()).padStart(2, '0')}-${String(
+		now.getMinutes()
+	).padStart(2, '0')}.json`;
+
+	const filePath = path.join(dirPath, fileName);
+
+	fs.writeFileSync(filePath, JSON.stringify(snapshot, null, 2));
+
 	vscode.window.setStatusBarMessage(
-		`CodePulse snapshot saved`,
+		`CodePulse snapshot written`,
 		3000
 	);
 
+	console.log("Dir: ", baseDir);
+	// Reset buffer
 	activityBuffer = {
 		files: new Set(),
 		languages: new Set(),
 		linesChanged: 0
 	};
 }
+
 
