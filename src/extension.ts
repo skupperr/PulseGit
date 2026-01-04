@@ -24,7 +24,7 @@ let pushPending = false;
 let successNotifiedForBatch = false;
 
 
-const FLUSH_INTERVAL_MS = 30 * 1000; // dev mode
+const FLUSH_INTERVAL_MS = 30 * 10000; // dev mode
 
 function getRepoPath(context: vscode.ExtensionContext) {
 	return path.join(context.globalStorageUri.fsPath, 'activity-repo');
@@ -120,19 +120,51 @@ export function activate(context: vscode.ExtensionContext) {
 
 
 	context.subscriptions.push(disposable);
+
+	const forceSnapshotCommand = vscode.commands.registerCommand(
+		'codepulse.forceSnapshot',
+		() => {
+			flushActivity(context, true);
+		}
+	);
+
+	context.subscriptions.push(forceSnapshotCommand);
+
+	const statusBarItem = vscode.window.createStatusBarItem(
+		vscode.StatusBarAlignment.Right,
+		100
+	);
+
+	statusBarItem.text = '$(pulse) CodePulse';
+	statusBarItem.command = 'codepulse.forceSnapshot';
+	statusBarItem.tooltip = 'Force snapshot and sync activity';
+	statusBarItem.show();
+
+	context.subscriptions.push(statusBarItem);
+
+
 }
 
 
 export function deactivate() { }
 
 
-function flushActivity(context: vscode.ExtensionContext) {
+function flushActivity(
+	context: vscode.ExtensionContext,
+	manual = false
+) {
 	if (
 		activityBuffer.files.size === 0 &&
 		activityBuffer.linesChanged === 0
 	) {
+		if (manual) {
+			vscode.window.showInformationMessage(
+				'CodePulse: No activity to snapshot'
+			);
+		}
 		return;
 	}
+
 
 	const now = new Date();
 
