@@ -20,6 +20,9 @@ let activityBuffer: ActivityBuffer = {
 };
 
 let gitInProgress = false;
+let pushPending = false;
+let successNotifiedForBatch = false;
+
 
 const FLUSH_INTERVAL_MS = 30 * 1000; // dev mode
 
@@ -92,6 +95,7 @@ export function activate(context: vscode.ExtensionContext) {
 	});
 
 	ensureRepoCloned(context);
+	void tryPush(getRepoPath(context));
 
 	const interval = setInterval(() => flushActivity(context), FLUSH_INTERVAL_MS);
 
@@ -99,6 +103,20 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push({
 		dispose: () => clearInterval(interval)
 	});
+
+	const pushRetryInterval = setInterval(() => {
+		if (!pushPending || gitInProgress) {
+			return;
+		}
+
+		void tryPush(getRepoPath(context));
+	}, 60 * 1000);
+
+
+	context.subscriptions.push({
+		dispose: () => clearInterval(pushRetryInterval)
+	});
+
 
 
 	context.subscriptions.push(disposable);
@@ -163,10 +181,7 @@ function flushActivity(context: vscode.ExtensionContext) {
 
 
 async function commitAndPush(repoPath: string) {
-	if (gitInProgress) {
-		return;
-	}
-
+	if (gitInProgress) return;
 	gitInProgress = true;
 
 	try {
@@ -179,22 +194,42 @@ async function commitAndPush(repoPath: string) {
 		}
 
 		await execAsync('git add .', { cwd: repoPath });
-
 		await execAsync(
 			'git commit -m "activity: coding snapshot"',
 			{ cwd: repoPath }
 		);
 
-		await execAsync('git push', { cwd: repoPath });
+		successNotifiedForBatch = false;
 
-		vscode.window.setStatusBarMessage(
-			'CodePulse pushed to GitHub',
-			3000
-		);
+		await tryPush(repoPath);
 	} catch (err: any) {
-		// Silent failure is intentional
 		console.warn('CodePulse git error:', err.message);
 	} finally {
 		gitInProgress = false;
 	}
 }
+
+
+
+async function tryPush(repoPath: string) {
+	try {
+		await execAsync('git push', { cwd: repoPath });
+
+		if (!successNotifiedForBatch) {
+			vscode.window.showInformationMessage(
+				'CodePulse synced to GitHub'
+			);
+			successNotifiedForBatch = true;
+		}
+
+		pushPending = false;
+	} catch (err: any) {
+		pushPending = true;
+
+		vscode.window.showWarningMessage(
+			'CodePulse push failed. Will retry automatically.'
+		);
+	}
+}
+
+
