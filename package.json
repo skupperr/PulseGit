@@ -2,8 +2,15 @@
   "name": "code-pulse",
   "displayName": "CodePulse",
   "description": "Tracks coding activity for GitHub contributions",
-  "keywords": ["git", "productivity", "tracking", "activity"],
-  "version": "0.0.1",
+  "publisher": "skupperr",
+  "keywords": [
+    "git",
+    "productivity",
+    "tracking",
+    "activity",
+    "coding"
+  ],
+  "version": "1.0.0",
   "engines": {
     "vscode": "^1.107.0"
   },
@@ -13,62 +20,67 @@
   "activationEvents": [
     "*"
   ],
-  "main": "./out/extension.js",
+  "main": "./dist/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "code-pulse.helloWorld",
-        "title": "Hello World"
+        "command": "codepulse.forceSnapshot",
+        "title": "CodePulse: Force Snapshot",
+        "category": "CodePulse"
       }
     ],
     "configuration": {
-      "title": "CodePulse",
+      "title": "CodePulse Settings",
       "properties": {
         "codepulse.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Enable or disable CodePulse tracking"
+          "title": "Enable CodePulse tracking",
+          "description": "When disabled, CodePulse will not record or push any activity."
         },
         "codepulse.snapshotIntervalMinutes": {
           "type": "number",
           "default": 30,
-          "minimum": 5,
-          "description": "How often CodePulse snapshots activity (in minutes)"
+          "minimum": 10,
+          "title": "Snapshot interval (minutes)",
+          "description": "How often CodePulse snapshots activity."
         },
         "codepulse.enableGitSync": {
           "type": "boolean",
           "default": true,
-          "description": "Automatically commit and push snapshots to GitHub"
+          "title": "Enable Git sync",
+          "description": "Automatically commit and push snapshots to your Git repository."
         },
         "codepulse.enableNotifications": {
           "type": "boolean",
           "default": true,
-          "description": "Show notifications for sync status"
+          "title": "Enable notifications",
+          "description": "Show notifications for snapshot and push status."
         },
         "codepulse.repoUrl": {
           "type": "string",
           "default": "",
-          "description": "Git repository URL where CodePulse will store activity (must be an existing repo)"
+          "title": "Repository URL",
+          "description": "Git repository URL where CodePulse will store activity (must exist and you must have push access)."
         }
       }
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
-    "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
-    "test": "vscode-test"
+    "compile": "tsc -p ./",
+    "build": "npm run compile",
+    "watch": "tsc -watch -p ./",
+    "prepublishOnly": "npm run build"
   },
   "devDependencies": {
-    "@types/vscode": "^1.107.0",
     "@types/mocha": "^10.0.10",
-    "@types/node": "22.x",
-    "typescript-eslint": "^8.48.1",
+    "@types/node": "^22.19.3",
+    "@types/vscode": "^1.107.0",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/test-electron": "^2.5.2",
     "eslint": "^9.39.1",
     "typescript": "^5.9.3",
-    "@vscode/test-cli": "^0.0.12",
-    "@vscode/test-electron": "^2.5.2"
+    "typescript-eslint": "^8.48.1"
   }
 }

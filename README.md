@@ -1,92 +1,151 @@
-CodePulse passively tracks your coding activity and snapshots it to your own Git repository.
+# CodePulse
 
-Understand your real coding habits without dashboards, accounts, or SaaS lock-in.
-Your data stays yours — in Git.
+CodePulse quietly tracks your coding activity and snapshots it to a Git repository you own.
 
-## What it does
-- Tracks files edited, languages used, and lines changed
-- Creates timestamped activity snapshots
-- Syncs activity to a user-owned Git repository
-- Works offline and retries automatically
-- Manual “Force Snapshot” button
-
-## Setup
-1. Install CodePulse
-2. Create a Git repository (private or public)
-3. Paste the repository URL into CodePulse settings
-4. Start coding
-
-
-
-
-# code-pulse README
-
-This is the README for your extension "code-pulse". After writing up a brief description, we recommend including the following sections.
-
-## Features
-
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
-
-For example if there is an image subfolder under your extension project workspace:
-
-\!\[feature X\]\(images/feature-x.png\)
-
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
-
-## Requirements
-
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
-
-## Extension Settings
-
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
-
-For example:
-
-This extension contributes the following settings:
-
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
-
-## Known Issues
-
-Calling out known issues can help limit users opening duplicate issues against your extension.
-
-## Release Notes
-
-Users appreciate release notes as you update your extension.
-
-### 1.0.0
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
+No accounts. No dashboards. No external servers.  
+Your data lives in Git — where it belongs.
 
 ---
 
-## Following extension guidelines
+## Why CodePulse
 
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
+GitHub contribution graphs don’t tell the full story.
 
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
+CodePulse captures real coding effort, even when you’re:
 
-## Working with Markdown
+- Working locally
+- Learning new technology
+- Offline
+- Experimenting without committing to a project repository
 
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
+---
 
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
+## What It Does
 
-## For more information
+- Tracks files edited, languages used, and lines changed
+- Creates timestamped JSON activity snapshots
+- Pushes snapshots to a Git repository **you control**
+- Works offline and retries automatically when connectivity returns
+- Manual **Force Snapshot** button in the status bar
 
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
+---
 
-**Enjoy!**
+## Gap Analysis vs Other Extensions
+
+| Feature | Other VS Code Activity Extensions | CodePulse |
+|---------|---------------------------------|-----------|
+| Open-source / external repo support | ❌ Requires push access to each project repo; impossible for most open-source contributions | ✅ Snapshots go to your own activity repo; can track any project without affecting project repos |
+| Authentication | ⚠️ Requires GitHub personal access token | ✅ Uses existing VS Code Git authentication; no extra token needed |
+| Activity commit destination | ⚠️ Commits directly to project repo, polluting history | ✅ Commits only to your dedicated activity repo |
+| Repository requirement | ❌ Must have a repo for each project/folder you work on | ✅ Only your dedicated activity repo is needed; you can track learning, demos, or experiments without a project/folder repo |
+| Offline support | ❌ Often fails if offline | ✅ Stores snapshots locally and retries automatically when connectivity returns |
+| Setup complexity | ⚠️ Must configure multiple repos or tokens | ✅ Only one repo URL required (your activity repo) |
+
+> CodePulse lets you track coding activity across all your projects, without worrying about polluting project histories or being blocked on permissions.
+
+---
+
+## Prerequisites
+
+Before using CodePulse, ensure the following:
+
+- **Git is installed** and available in your system PATH
+- **You are signed into GitHub in VS Code**
+  - Open the Accounts menu (bottom-left) and sign in
+- **The configured repository belongs to you** or you have push access
+- **Repository URL uses HTTPS** (recommended)
+
+> CodePulse relies on your existing Git authentication.  
+> If you are not authenticated or lack permission, pushes will fail.
+
+---
+
+## Setup
+
+1. Install CodePulse
+2. Create a Git repository (public or private) — this will be your **activity repo**
+3. Open **Settings → CodePulse**
+4. Set the **Repository URL (HTTPS)**
+5. Ensure GitHub authentication is active in VS Code
+6. Start coding
+
+Snapshots will be created automatically based on the configured interval.
+
+---
+
+## Manual Snapshot
+
+Use the **CodePulse** button in the status bar or run:
+
+- **CodePulse: Force Snapshot**
+
+This immediately creates a snapshot and attempts to sync it.
+
+---
+
+## Offline & Error Handling
+
+- If you are offline:
+  - Activity is stored locally
+  - CodePulse retries automatically
+  - You are notified when syncing resumes
+
+- If the repository does not exist or you lack permission:
+  - You will see an explicit error message
+  - Automatic retries are disabled until fixed
+
+---
+
+## Configuration / Settings
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `enabled` | Boolean | `true` | Enable or disable CodePulse tracking. |
+| `snapshotIntervalMinutes` | Number | `30` | Interval (in minutes) between automatic snapshots. Minimum is 5 minutes. |
+| `enableGitSync` | Boolean | `true` | Enable pushing snapshots to a Git repository. |
+| `repoUrl` | String | `""` | HTTPS URL of the Git repository where snapshots will be stored. Must be a repo you can push to. |
+| `enableNotifications` | Boolean | `true` | Show VS Code notifications for successful syncs or errors. |
+
+> ⚠️ **Important:** Changing the repository URL will remove the previous local repository and clone the new one.
+
+---
+
+## Settings UI
+
+You can configure CodePulse directly from the **VS Code Settings** panel.
+
+### Example: General Settings
+
+![Settings Screenshot Placeholder](images/screenshot_1.png)
+
+- Enable/disable tracking  
+- Set snapshot interval  
+- Toggle Git sync  
+
+---
+
+## Privacy
+
+CodePulse does **not** collect or transmit data to any external service.
+
+All activity data:
+
+- Is generated locally
+- Is stored locally
+- Is pushed **only** to the Git repository you explicitly configure
+
+See [PRIVACY.md](PRIVACY.md) for full details.
+
+---
+
+## License
+
+MIT. See [LICENSE.txt](LICENSE.txt) for full license details.
+
+---
+
+## Contact
+
+For any questions or suggestions, please open an issue on the GitHub repository or reach out to me directly.  
+
+[**GitHub Repository**](https://github.com/skupperr/code-pulse.git)

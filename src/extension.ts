@@ -223,6 +223,11 @@ export function deactivate() { }
 function flushActivity(context: vscode.ExtensionContext, manual = false) {
 
 	if (!getConfig().get<boolean>('enabled')) {
+		if (manual) {
+			notifyInfo(
+				'CodePulse tracking is disabled. Enable it in Settings to record activity.'
+			);
+		}
 		return;
 	}
 
@@ -292,7 +297,7 @@ function flushActivity(context: vscode.ExtensionContext, manual = false) {
 
 
 async function commitAndPush(repoPath: string) {
-	if (gitInProgress) return;
+	if (gitInProgress) { return; };
 	gitInProgress = true;
 
 	try {
@@ -331,7 +336,7 @@ async function commitAndPush(repoPath: string) {
 
 
 async function tryPush(repoPath: string, generation = repoGeneration) {
-	if (generation !== repoGeneration) return;
+	if (generation !== repoGeneration) { return; };
 
 	try {
 		await execAsync('git push', { cwd: repoPath });
@@ -343,25 +348,7 @@ async function tryPush(repoPath: string, generation = repoGeneration) {
 
 		pushPending = false;
 	}
-	// catch (err: any) {
-	// 	if (generation !== repoGeneration) return;
 
-	// 	const stderr = err?.stderr || err?.message || '';
-	// 	const classification = classifyGitError(stderr);
-
-	// 	if (classification.type === 'network') {
-	// 		pushPending = true;
-	// 		notifyWarn(classification.message);
-	// 		return;
-	// 	}
-
-	// 	// ❌ Fatal errors — do NOT retry
-	// 	pushPending = false;
-
-	// 	notifyWarn(
-	// 		`CodePulse sync failed: ${classification.message}`
-	// 	);
-	// }
 	catch (err: any) {
 		const msg = err.stderr?.toString() || err.message;
 		const userMessage = classifyGitError(msg);
@@ -378,60 +365,6 @@ async function tryPush(repoPath: string, generation = repoGeneration) {
 
 }
 
-
-
-// function classifyGitError(stderr: string): {
-// 	type: 'auth' | 'repo' | 'network' | 'unknown';
-// 	message: string;
-// } {
-// 	const msg = stderr.toLowerCase();
-
-// 	if (
-// 		msg.includes('permission denied') ||
-// 		msg.includes('access denied') ||
-// 		msg.includes('403') ||
-// 		msg.includes('authentication failed') ||
-// 		msg.includes('could not read from remote repository')
-// 	) {
-// 		return {
-// 			type: 'auth',
-// 			message:
-// 				'You do not have permission to push to this repository.'
-// 		};
-// 	}
-
-// 	if (
-// 		msg.includes('repository not found') ||
-// 		msg.includes('not found') ||
-// 		msg.includes('does not exist') ||
-// 		msg.includes('not a git repository')
-
-// 	) {
-// 		return {
-// 			type: 'repo',
-// 			message:
-// 				'The configured repository does not exist or is incorrect.'
-// 		};
-// 	}
-
-// 	if (
-// 		msg.includes('could not resolve host') ||
-// 		msg.includes('network') ||
-// 		msg.includes('timed out') ||
-// 		msg.includes('connection')
-// 	) {
-// 		return {
-// 			type: 'network',
-// 			message:
-// 				'Network issue detected. Changes will sync automatically.'
-// 		};
-// 	}
-
-// 	return {
-// 		type: 'unknown',
-// 		message: 'Git push failed due to an unknown error.'
-// 	};
-// }
 
 function classifyGitError(message: string): string {
 	const msg = message.toLowerCase();
@@ -469,3 +402,4 @@ function notifyWarn(message: string) {
 		vscode.window.showWarningMessage(message);
 	}
 }
+console.log("Hello");
