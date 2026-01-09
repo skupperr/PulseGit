@@ -1,6 +1,6 @@
 {
-  "name": "code-pulse",
-  "displayName": "CodePulse",
+  "name": "pulse-git",
+  "displayName": "PulseGit",
   "description": "Tracks coding activity for GitHub contributions",
   "publisher": "skupperr",
   "keywords": [
@@ -17,51 +17,53 @@
   "categories": [
     "Other"
   ],
+  "icon": "images/icon.png",
   "activationEvents": [
-    "*"
-  ],
+  "onStartupFinished",
+  "onCommand:pulsegit.forceSnapshot"
+],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "codepulse.forceSnapshot",
-        "title": "CodePulse: Force Snapshot",
-        "category": "CodePulse"
+        "command": "pulsegit.forceSnapshot",
+        "title": "pulsegit: Force Snapshot",
+        "category": "PulseGit"
       }
     ],
     "configuration": {
-      "title": "CodePulse Settings",
+      "title": "PulseGit Settings",
       "properties": {
-        "codepulse.enabled": {
+        "pulsegit.enabled": {
           "type": "boolean",
           "default": true,
-          "title": "Enable CodePulse tracking",
-          "description": "When disabled, CodePulse will not record or push any activity."
+          "title": "Enable PulseGit tracking",
+          "description": "When disabled, PulseGit will not record or push any activity."
         },
-        "codepulse.snapshotIntervalMinutes": {
+        "pulsegit.snapshotIntervalMinutes": {
           "type": "number",
           "default": 30,
           "minimum": 10,
           "title": "Snapshot interval (minutes)",
-          "description": "How often CodePulse snapshots activity."
+          "description": "How often PulseGit snapshots activity."
         },
-        "codepulse.enableGitSync": {
+        "pulsegit.enableGitSync": {
           "type": "boolean",
           "default": true,
           "title": "Enable Git sync",
           "description": "Automatically commit and push snapshots to your Git repository."
         },
-        "codepulse.enableNotifications": {
+        "pulsegit.enableNotifications": {
           "type": "boolean",
           "default": true,
           "title": "Enable notifications",
           "description": "Show notifications for snapshot and push status."
         },
-        "codepulse.repoUrl": {
+        "pulsegit.repoUrl": {
           "type": "string",
           "default": "",
           "title": "Repository URL",
-          "description": "Git repository URL where CodePulse will store activity (must exist and you must have push access)."
+          "description": "Git repository URL where PulseGit will store activity (must exist and you must have push access)."
         }
       }
     }
@@ -82,5 +84,9 @@
     "eslint": "^9.39.1",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.48.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/skupperr/PulseGit.git"
   }
 }

@@ -29,7 +29,7 @@ let repoGeneration = 0;
 // const FLUSH_INTERVAL_MS = 30 * 10000; // dev mode
 
 function getConfig() {
-	return vscode.workspace.getConfiguration('codepulse');
+	return vscode.workspace.getConfiguration('pulsegit');
 }
 
 
@@ -59,7 +59,7 @@ function ensureRepoCloned(context: vscode.ExtensionContext) {
 	// 	});
 	// } catch {
 	// 	notifyWarn(
-	// 		'CodePulse: Failed to clone activity repo. Check repo URL and authentication.'
+	// 		'PulseGit: Failed to clone activity repo. Check repo URL and authentication.'
 	// 	);
 	// }
 
@@ -69,7 +69,7 @@ function ensureRepoCloned(context: vscode.ExtensionContext) {
 		});
 	} catch {
 		notifyWarn(
-			'CodePulse: Failed to clone activity repo. Check repo URL and authentication.'
+			'PulseGit: Failed to clone activity repo. Check repo URL and authentication.'
 		);
 	}
 
@@ -83,7 +83,7 @@ function ensureRepoCloned(context: vscode.ExtensionContext) {
 export function activate(context: vscode.ExtensionContext) {
 
 	vscode.workspace.onDidChangeConfiguration(e => {
-		if (e.affectsConfiguration('codepulse.snapshotIntervalMinutes')) {
+		if (e.affectsConfiguration('pulsegit.snapshotIntervalMinutes')) {
 			clearInterval(interval);
 			interval = setInterval(
 				() => flushActivity(context),
@@ -91,7 +91,7 @@ export function activate(context: vscode.ExtensionContext) {
 			);
 		}
 
-		if (e.affectsConfiguration('codepulse.repoUrl')) {
+		if (e.affectsConfiguration('pulsegit.repoUrl')) {
 			repoGeneration++;
 
 			const repoPath = getRepoPath(context);
@@ -120,12 +120,12 @@ export function activate(context: vscode.ExtensionContext) {
 		notifyInfo(gitVersion);
 	} catch (e: any) {
 		vscode.window.showErrorMessage(
-			`Git not available to CodePulse: ${e.message}`
+			`Git not available to PulseGit: ${e.message}`
 		);
 	}
 
 
-	notifyInfo('CodePulse is running');
+	notifyInfo('PulseGit is running');
 
 	const disposable = vscode.workspace.onDidChangeTextDocument((event) => {
 		if (!getConfig().get<boolean>('enabled')) {
@@ -148,7 +148,7 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 
 		vscode.window.setStatusBarMessage(
-			`CodePulse: ${activityBuffer.files.size} files · ${activityBuffer.linesChanged} LOC`,
+			`PulseGit: ${activityBuffer.files.size} files · ${activityBuffer.linesChanged} LOC`,
 			1500
 		);
 	});
@@ -159,7 +159,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 	if (!repoUrl && getConfig().get<boolean>('enableGitSync')) {
 		notifyWarn(
-			'CodePulse: Set a Git repository URL to enable syncing.'
+			'PulseGit: Set a Git repository URL to enable syncing.'
 		);
 	}
 
@@ -193,7 +193,7 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(disposable);
 
 	const forceSnapshotCommand = vscode.commands.registerCommand(
-		'codepulse.forceSnapshot',
+		'pulsegit.forceSnapshot',
 		() => {
 			flushActivity(context, true);
 		}
@@ -206,8 +206,8 @@ export function activate(context: vscode.ExtensionContext) {
 		100
 	);
 
-	statusBarItem.text = '$(pulse) CodePulse';
-	statusBarItem.command = 'codepulse.forceSnapshot';
+	statusBarItem.text = '$(pulse) PulseGit';
+	statusBarItem.command = 'pulsegit.forceSnapshot';
 	statusBarItem.tooltip = 'Force snapshot and sync activity';
 	statusBarItem.show();
 
@@ -225,7 +225,7 @@ function flushActivity(context: vscode.ExtensionContext, manual = false) {
 	if (!getConfig().get<boolean>('enabled')) {
 		if (manual) {
 			notifyInfo(
-				'CodePulse tracking is disabled. Enable it in Settings to record activity.'
+				'PulseGit tracking is disabled. Enable it in Settings to record activity.'
 			);
 		}
 		return;
@@ -238,11 +238,10 @@ function flushActivity(context: vscode.ExtensionContext, manual = false) {
 		activityBuffer.linesChanged === 0
 	) {
 		if (manual) {
-			notifyInfo('CodePulse: No activity to snapshot');
+			notifyInfo('PulseGit: No activity to snapshot');
 		}
 		return;
 	}
-
 
 	const now = new Date();
 
@@ -274,7 +273,7 @@ function flushActivity(context: vscode.ExtensionContext, manual = false) {
 	fs.writeFileSync(filePath, JSON.stringify(snapshot, null, 2));
 
 	vscode.window.setStatusBarMessage(
-		`CodePulse snapshot written`,
+		`PulseGit snapshot written`,
 		3000
 	);
 
@@ -321,7 +320,7 @@ async function commitAndPush(repoPath: string) {
 		await tryPush(repoPath);
 	}
 	// catch (err: any) {
-	// 	console.warn('CodePulse git error:', err.message);
+	// 	console.warn('PulseGit git error:', err.message);
 	// }
 	catch (err: any) {
 		const msg = err.stderr?.toString() || err.message;
@@ -343,7 +342,7 @@ async function tryPush(repoPath: string, generation = repoGeneration) {
 		await execAsync('git push', { cwd: repoPath });
 
 		if (!successNotifiedForBatch) {
-			notifyInfo('CodePulse synced to GitHub');
+			notifyInfo('PulseGit synced to GitHub');
 			successNotifiedForBatch = true;
 		}
 
@@ -383,10 +382,10 @@ function classifyGitError(message: string): string {
 	}
 
 	if (msg.includes('could not resolve host') || msg.includes('network')) {
-		return 'CodePulse is offline. Changes will sync automatically.';
+		return 'PulseGit is offline. Changes will sync automatically.';
 	}
 
-	return 'CodePulse push failed due to an unknown Git error.';
+	return 'PulseGit push failed due to an unknown Git error.';
 }
 
 
@@ -403,4 +402,3 @@ function notifyWarn(message: string) {
 		vscode.window.showWarningMessage(message);
 	}
 }
-console.log("Hello");

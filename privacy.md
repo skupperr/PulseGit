@@ -1,14 +1,14 @@
-# CodePulse Privacy Policy
+# PulseGit Privacy Policy
 
 **Effective Date:** January 8, 2026
 
-CodePulse is designed to track coding activity **locally**. Your privacy and data ownership are central to its design.  
+PulseGit is designed to track coding activity **locally**. Your privacy and data ownership are central to its design.  
 
 ---
 
 ## Data Collection
 
-- CodePulse **does not collect or transmit any personal data** to external servers.
+- PulseGit **does not collect or transmit any personal data** to external servers.
 - All activity tracking occurs **on your machine**.
 - Only the snapshots you explicitly push are sent to a Git repository you control.
 
@@ -27,16 +27,16 @@ All data is stored locally in your extension storage folder and optionally in th
 
 ## Data Sharing
 
-- CodePulse **never shares your data externally**.
+- PulseGit **never shares your data externally**.
 - Snapshots are pushed **only** to a repository URL you explicitly configure in the settings.
-- If you configure a repository you do not have access to, pushes will fail, and CodePulse will notify you with an error.
+- If you configure a repository you do not have access to, pushes will fail, and PulseGit will notify you with an error.
 
 ---
 
 ## Offline Mode
 
 - Snapshots are stored locally if Git push fails due to network or permission issues.
-- CodePulse automatically retries syncing when connectivity is restored.
+- PulseGit automatically retries syncing when connectivity is restored.
 
 ---
 
@@ -49,7 +49,7 @@ All data is stored locally in your extension storage folder and optionally in th
 
 ## Summary
 
-CodePulse ensures:
+PulseGit ensures:
 
 - Full local ownership of your coding activity
 - No tracking of users or sending of data to third-party services
