@@ -7,3 +7,16 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ## [Unreleased]
 
 - Initial release
+
+# Changelog
+
+## 0.1.1
+
+### Added
+- Improved repository validation
+- Better Git error messages
+- Fixed the remote repo configuration issue
+
+### Fixed
+- Fixed settings synchronization issues
+- Fixed snapshot behavior when tracking is disabled
