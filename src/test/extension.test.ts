@@ -1,4 +1,8 @@
 import * as assert from 'assert';
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
+import { execSync } from 'child_process';
 
 // You can import and use all API from the 'vscode' module
 // as well as import your extension to test it
@@ -15,6 +19,19 @@ suite('Extension Test Suite', () => {
 
 	test('buildGitPushCommand uses an upstream push for initial remote sync', () => {
 		assert.strictEqual(buildGitPushCommand(), 'git push --set-upstream origin HEAD');
+	});
+
+	test('buildGitPushCommand uses the current branch name when a repo is available', () => {
+		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pulsegit-test-'));
+
+		try {
+			execSync('git init', { cwd: tempDir, stdio: 'ignore' });
+			execSync('git checkout -b feature/test', { cwd: tempDir, stdio: 'ignore' });
+
+			assert.strictEqual(buildGitPushCommand(tempDir), 'git push --set-upstream origin feature/test');
+		} finally {
+			fs.rmSync(tempDir, { recursive: true, force: true });
+		}
 	});
 
 	test('classifyGitError explains missing Git identity', () => {

@@ -47,24 +47,6 @@ function getRepoPath(context: vscode.ExtensionContext) {
 
 
 
-// function ensureRepoCloned(context: vscode.ExtensionContext): boolean {
-// 	const repoUrl = getConfig().get<string>('repoUrl', '').trim();
-// 	const repoPath = getRepoPath(context);
-
-// 	if (!repoUrl) { return false; };
-// 	if (fs.existsSync(path.join(repoPath, '.git'))) { return true; }
-
-// 	fs.mkdirSync(repoPath, { recursive: true });
-
-// 	try {
-// 		execSync(`git clone ${repoUrl} "${repoPath}"`, { stdio: 'pipe' });
-// 		return true;
-// 	} catch (e: any) {
-// 		const msg = e.stderr?.toString() || e.message;
-// 		notifyWarn(`PulseGit: Failed to clone repo — ${classifyGitError(msg)}`);
-// 		return false;
-// 	}
-// }
 
 function ensureRepoCloned(context: vscode.ExtensionContext): boolean {
 
@@ -100,7 +82,7 @@ function ensureRepoCloned(context: vscode.ExtensionContext): boolean {
 
 	fs.mkdirSync(
 		path.dirname(repoPath),
-		{ recursive:true }
+		{ recursive: true }
 	);
 
 
@@ -109,14 +91,14 @@ function ensureRepoCloned(context: vscode.ExtensionContext): boolean {
 		execSync(
 			`git clone "${repoUrl}" "${repoPath}"`,
 			{
-				stdio:'pipe'
+				stdio: 'pipe'
 			}
 		);
 
 		return true;
 
 	}
-	catch(e:any){
+	catch (e: any) {
 
 		const msg =
 			e.stderr?.toString()
@@ -147,51 +129,6 @@ export function activate(context: vscode.ExtensionContext) {
 			);
 		}
 
-		// if (e.affectsConfiguration('pulsegit.repoUrl')) {
-		// 	repoGeneration++;
-
-		// 	const repoPath = getRepoPath(context);
-
-		// 	if (fs.existsSync(repoPath)) {
-		// 		fs.rmSync(repoPath, { recursive: true, force: true });
-		// 	}
-
-		// 	ensureRepoCloned(context);
-		// }
-		// if (e.affectsConfiguration('pulsegit.repoUrl')) {
-		// 	repoGeneration++;
-		// 	const currentGeneration = repoGeneration;
-
-		// 	const doReclone = () => {
-		// 		// If another repoUrl change happened while we waited, abort
-		// 		if (currentGeneration !== repoGeneration) { return; }
-
-		// 		const repoPath = getRepoPath(context);
-
-		// 		try {
-		// 			if (fs.existsSync(repoPath)) {
-		// 				fs.rmSync(repoPath, { recursive: true, force: true });
-		// 			}
-		// 		} catch (e: any) {
-		// 			notifyWarn(`PulseGit: Could not remove old repo — ${e.message}`);
-		// 			return;
-		// 		}
-
-		// 		ensureRepoCloned(context);
-		// 	};
-
-		// 	if (gitInProgress) {
-		// 		// Poll until git is done, then wipe and reclone
-		// 		const wait = setInterval(() => {
-		// 			if (!gitInProgress) {
-		// 				clearInterval(wait);
-		// 				doReclone();
-		// 			}
-		// 		}, 500);
-		// 	} else {
-		// 		doReclone();
-		// 	}
-		// }
 
 		if (e.affectsConfiguration('pulsegit.repoUrl')) {
 			repoGeneration++;
@@ -268,7 +205,7 @@ export function activate(context: vscode.ExtensionContext) {
 		);
 	}
 
-	if (repoIsReady(getRepoPath(context))) {
+	if (repoIsReady(getRepoPath(context)) && repoHasCommits(getRepoPath(context))) {
 		void tryPush(getRepoPath(context));
 	}
 
@@ -408,55 +345,57 @@ function flushActivity(context: vscode.ExtensionContext, manual = false) {
 }
 
 
+
 async function commitAndPush(repoPath: string, context: any) {
-	if (gitInProgress) { return; };
+	if (gitInProgress) { return; }
 	gitInProgress = true;
 
 	try {
-		const { stdout } = await execAsync('git status --porcelain', {
-			cwd: repoPath
-		});
-
-		if (!stdout.trim()) {
-			return;
-		}
-
+		// Sync first so the status check sees the new files
 		syncSnapshotsToRepo(context);
 
+		const { stdout } = await execAsync('git status --porcelain', { cwd: repoPath });
+		if (!stdout.trim()) { return; }
+
 		await execAsync('git add .', { cwd: repoPath });
-		await execAsync(
-			'git commit -m "activity: coding snapshot"',
-			{ cwd: repoPath }
-		);
+		await execAsync('git commit -m "activity: coding snapshot"', { cwd: repoPath });
 
 		successNotifiedForBatch = false;
-
 		await tryPush(repoPath);
-	}
-	// catch (err: any) {
-	// 	console.warn('PulseGit git error:', err.message);
-	// }
-	catch (err: any) {
+	} catch (err: any) {
 		const msg = getGitErrorText(err);
 		notifyWarn(classifyGitError(msg));
-		pushPending = false; // ❗ not retryable
-	}
-
-	finally {
+		pushPending = false;
+	} finally {
 		gitInProgress = false;
 	}
 }
 
 
 
-export function buildGitPushCommand(): string {
+export function buildGitPushCommand(repoPath?: string): string {
+	if (repoPath) {
+		try {
+			const branch = execSync('git branch --show-current', {
+				cwd: repoPath,
+				stdio: ['ignore', 'pipe', 'ignore']
+			}).toString().trim();
+
+			if (branch) {
+				return `git push --set-upstream origin ${branch}`;
+			}
+		} catch {
+			// Fall back to HEAD if branch detection fails.
+		}
+	}
+
 	return 'git push --set-upstream origin HEAD';
 }
 
 async function tryPush(repoPath: string, generation = repoGeneration) {
 	if (generation !== repoGeneration) { return; };
 
-	const commands = ['git push', buildGitPushCommand()];
+	const commands = ['git push', buildGitPushCommand(repoPath)];
 	let lastUserMessage = '';
 
 	for (const command of commands) {
@@ -628,4 +567,13 @@ function syncSnapshotsToRepo(context: vscode.ExtensionContext) {
 		recursive: true,
 		force: true
 	});
+}
+
+function repoHasCommits(repoPath: string): boolean {
+	try {
+		execSync('git rev-parse HEAD', { cwd: repoPath, stdio: 'pipe' });
+		return true;
+	} catch {
+		return false;   // unborn branch — no commits yet
+	}
 }
