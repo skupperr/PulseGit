@@ -33,48 +33,104 @@ function getConfig() {
 }
 
 
+function getStoragePath(context: vscode.ExtensionContext) {
+	return context.globalStorageUri.fsPath;
+}
+
+function getSnapshotsPath(context: vscode.ExtensionContext) {
+	return path.join(getStoragePath(context), 'snapshots');
+}
+
 function getRepoPath(context: vscode.ExtensionContext) {
-	return path.join(context.globalStorageUri.fsPath, 'activity-repo');
+	return path.join(getStoragePath(context), 'activity-repo');
 }
 
 
 
-function ensureRepoCloned(context: vscode.ExtensionContext) {
-	const repoUrl = getConfig().get<string>('repoUrl', '').trim();
+// function ensureRepoCloned(context: vscode.ExtensionContext): boolean {
+// 	const repoUrl = getConfig().get<string>('repoUrl', '').trim();
+// 	const repoPath = getRepoPath(context);
+
+// 	if (!repoUrl) { return false; };
+// 	if (fs.existsSync(path.join(repoPath, '.git'))) { return true; }
+
+// 	fs.mkdirSync(repoPath, { recursive: true });
+
+// 	try {
+// 		execSync(`git clone ${repoUrl} "${repoPath}"`, { stdio: 'pipe' });
+// 		return true;
+// 	} catch (e: any) {
+// 		const msg = e.stderr?.toString() || e.message;
+// 		notifyWarn(`PulseGit: Failed to clone repo — ${classifyGitError(msg)}`);
+// 		return false;
+// 	}
+// }
+
+function ensureRepoCloned(context: vscode.ExtensionContext): boolean {
+
+	const repoUrl = getConfig()
+		.get<string>('repoUrl', '')
+		.trim();
+
 	const repoPath = getRepoPath(context);
 
+
 	if (!repoUrl) {
-		return; // user hasn’t configured it yet
+		return false;
 	}
 
-	if (fs.existsSync(path.join(repoPath, '.git'))) {
-		return;
+
+	if (repoIsReady(repoPath)) {
+		return true;
 	}
 
-	fs.mkdirSync(repoPath, { recursive: true });
 
-	// try {
-	// 	execSync(`git clone ${repoUrl} "${repoPath}"`, {
-	// 		stdio: 'ignore'
-	// 	});
-	// } catch {
-	// 	notifyWarn(
-	// 		'PulseGit: Failed to clone activity repo. Check repo URL and authentication.'
-	// 	);
-	// }
+	if (fs.existsSync(repoPath)) {
+
+		notifyWarn(
+			'PulseGit: Removing invalid local repository...'
+		);
+
+		fs.rmSync(repoPath, {
+			recursive: true,
+			force: true
+		});
+	}
+
+
+	fs.mkdirSync(
+		path.dirname(repoPath),
+		{ recursive:true }
+	);
+
 
 	try {
-		execSync(`git clone ${repoUrl} "${repoPath}"`, {
-			stdio: 'pipe'
-		});
-	} catch {
-		notifyWarn(
-			'PulseGit: Failed to clone activity repo. Check repo URL and authentication.'
+
+		execSync(
+			`git clone "${repoUrl}" "${repoPath}"`,
+			{
+				stdio:'pipe'
+			}
 		);
+
+		return true;
+
 	}
+	catch(e:any){
 
+		const msg =
+			e.stderr?.toString()
+			||
+			e.message;
+
+		notifyWarn(
+			`PulseGit: Failed to clone repo — ${classifyGitError(msg)}`
+		);
+
+
+		return false;
+	}
 }
-
 
 
 
@@ -91,16 +147,65 @@ export function activate(context: vscode.ExtensionContext) {
 			);
 		}
 
+		// if (e.affectsConfiguration('pulsegit.repoUrl')) {
+		// 	repoGeneration++;
+
+		// 	const repoPath = getRepoPath(context);
+
+		// 	if (fs.existsSync(repoPath)) {
+		// 		fs.rmSync(repoPath, { recursive: true, force: true });
+		// 	}
+
+		// 	ensureRepoCloned(context);
+		// }
+		// if (e.affectsConfiguration('pulsegit.repoUrl')) {
+		// 	repoGeneration++;
+		// 	const currentGeneration = repoGeneration;
+
+		// 	const doReclone = () => {
+		// 		// If another repoUrl change happened while we waited, abort
+		// 		if (currentGeneration !== repoGeneration) { return; }
+
+		// 		const repoPath = getRepoPath(context);
+
+		// 		try {
+		// 			if (fs.existsSync(repoPath)) {
+		// 				fs.rmSync(repoPath, { recursive: true, force: true });
+		// 			}
+		// 		} catch (e: any) {
+		// 			notifyWarn(`PulseGit: Could not remove old repo — ${e.message}`);
+		// 			return;
+		// 		}
+
+		// 		ensureRepoCloned(context);
+		// 	};
+
+		// 	if (gitInProgress) {
+		// 		// Poll until git is done, then wipe and reclone
+		// 		const wait = setInterval(() => {
+		// 			if (!gitInProgress) {
+		// 				clearInterval(wait);
+		// 				doReclone();
+		// 			}
+		// 		}, 500);
+		// 	} else {
+		// 		doReclone();
+		// 	}
+		// }
+
 		if (e.affectsConfiguration('pulsegit.repoUrl')) {
 			repoGeneration++;
 
 			const repoPath = getRepoPath(context);
 
-			if (fs.existsSync(repoPath)) {
-				fs.rmSync(repoPath, { recursive: true, force: true });
+			// First time setup
+			if (!repoIsReady(repoPath)) {
+				ensureRepoCloned(context);
+				return;
 			}
 
-			ensureRepoCloned(context);
+			// Existing repo → just update origin
+			updateRemote(context);
 		}
 
 
@@ -163,7 +268,10 @@ export function activate(context: vscode.ExtensionContext) {
 		);
 	}
 
-	void tryPush(getRepoPath(context));
+	if (repoIsReady(getRepoPath(context))) {
+		void tryPush(getRepoPath(context));
+	}
+
 
 	let interval = setInterval(
 		() => flushActivity(context),
@@ -179,7 +287,9 @@ export function activate(context: vscode.ExtensionContext) {
 		if (!pushPending || gitInProgress) {
 			return;
 		}
-
+		if (!repoIsReady(getRepoPath(context))) {
+			return;
+		};
 		void tryPush(getRepoPath(context));
 	}, 60 * 1000);
 
@@ -232,7 +342,7 @@ function flushActivity(context: vscode.ExtensionContext, manual = false) {
 	}
 
 
-	
+
 	if (
 		activityBuffer.files.size === 0 &&
 		activityBuffer.linesChanged === 0
@@ -252,7 +362,8 @@ function flushActivity(context: vscode.ExtensionContext, manual = false) {
 		linesChanged: activityBuffer.linesChanged
 	};
 
-	const baseDir = path.join(getRepoPath(context), 'activity');
+	// const baseDir = path.join(getRepoPath(context), 'activity');
+	const baseDir = path.join(getSnapshotsPath(context), 'activity');
 
 	const dirPath = path.join(
 		baseDir,
@@ -287,16 +398,17 @@ function flushActivity(context: vscode.ExtensionContext, manual = false) {
 
 	if (
 		getConfig().get<boolean>('enableGitSync') &&
-		getConfig().get<string>('repoUrl')?.trim()
+		getConfig().get<string>('repoUrl')?.trim() &&
+		repoIsReady(getRepoPath(context))
 	) {
-		void commitAndPush(getRepoPath(context));
+		void commitAndPush(getRepoPath(context), context);
 	}
 
 
 }
 
 
-async function commitAndPush(repoPath: string) {
+async function commitAndPush(repoPath: string, context: any) {
 	if (gitInProgress) { return; };
 	gitInProgress = true;
 
@@ -308,6 +420,8 @@ async function commitAndPush(repoPath: string) {
 		if (!stdout.trim()) {
 			return;
 		}
+
+		syncSnapshotsToRepo(context);
 
 		await execAsync('git add .', { cwd: repoPath });
 		await execAsync(
@@ -323,7 +437,7 @@ async function commitAndPush(repoPath: string) {
 	// 	console.warn('PulseGit git error:', err.message);
 	// }
 	catch (err: any) {
-		const msg = err.stderr?.toString() || err.message;
+		const msg = getGitErrorText(err);
 		notifyWarn(classifyGitError(msg));
 		pushPending = false; // ❗ not retryable
 	}
@@ -335,39 +449,87 @@ async function commitAndPush(repoPath: string) {
 
 
 
+export function buildGitPushCommand(): string {
+	return 'git push --set-upstream origin HEAD';
+}
+
 async function tryPush(repoPath: string, generation = repoGeneration) {
 	if (generation !== repoGeneration) { return; };
 
-	try {
-		await execAsync('git push', { cwd: repoPath });
+	const commands = ['git push', buildGitPushCommand()];
+	let lastUserMessage = '';
 
-		if (!successNotifiedForBatch) {
-			notifyInfo('PulseGit synced to GitHub');
-			successNotifiedForBatch = true;
-		}
+	for (const command of commands) {
+		try {
+			await execAsync(command, { cwd: repoPath });
 
-		pushPending = false;
-	}
+			if (!successNotifiedForBatch) {
+				notifyInfo('PulseGit synced to GitHub');
+				successNotifiedForBatch = true;
+			}
 
-	catch (err: any) {
-		const msg = err.stderr?.toString() || err.message;
-		const userMessage = classifyGitError(msg);
-
-		notifyWarn(userMessage);
-
-		// Retry ONLY for network issues
-		if (userMessage.includes('offline')) {
-			pushPending = true;
-		} else {
 			pushPending = false;
+			return;
+		}
+		catch (err: any) {
+			const msg = getGitErrorText(err);
+			lastUserMessage = classifyGitError(msg);
+
+			const lowerMsg = msg.toLowerCase();
+			const shouldRetryWithUpstream =
+				command === 'git push' &&
+				(
+					lowerMsg.includes('no upstream branch') ||
+					lowerMsg.includes('no configured push destination') ||
+					lowerMsg.includes('set up to track')
+				);
+
+			if (!shouldRetryWithUpstream) {
+				notifyWarn(lastUserMessage);
+				pushPending = lastUserMessage.includes('offline');
+				return;
+			}
 		}
 	}
 
+	notifyWarn(lastUserMessage || 'PulseGit push failed due to an unknown Git error.');
+	pushPending = lastUserMessage.includes('offline');
 }
 
 
-function classifyGitError(message: string): string {
+export function getGitErrorText(err: any): string {
+	if (typeof err === 'string') {
+		return err;
+	}
+
+	const parts: string[] = [];
+
+	if (err?.stdout) {
+		parts.push(err.stdout.toString());
+	}
+
+	if (err?.stderr) {
+		parts.push(err.stderr.toString());
+	}
+
+	if (err?.message) {
+		parts.push(err.message);
+	}
+
+	return parts.filter(Boolean).join('\n').trim();
+}
+
+export function classifyGitError(message: string): string {
 	const msg = message.toLowerCase();
+	const trimmed = message.trim();
+
+	if (msg.includes('author identity unknown') || msg.includes('please tell me who you are') || msg.includes('unable to auto-detect email address')) {
+		return 'Git is missing your user.name/user.email settings. Configure them locally and try again.';
+	}
+
+	if (msg.includes('could not read username') || msg.includes('authentication failed') || msg.includes('terminal prompts disabled') || msg.includes('support for password authentication was removed')) {
+		return 'Git authentication failed. Check your remote credentials or PAT and try again.';
+	}
 
 	if (msg.includes('repository not found')) {
 		return 'The configured repository does not exist or the URL is incorrect.';
@@ -383,6 +545,14 @@ function classifyGitError(message: string): string {
 
 	if (msg.includes('could not resolve host') || msg.includes('network')) {
 		return 'PulseGit is offline. Changes will sync automatically.';
+	}
+
+	if (msg.includes('no upstream branch') || msg.includes('no configured push destination')) {
+		return 'PulseGit could not push because the branch has no upstream remote. The next sync will retry with the correct remote tracking setup.';
+	}
+
+	if (trimmed) {
+		return `PulseGit push failed: ${trimmed}`;
 	}
 
 	return 'PulseGit push failed due to an unknown Git error.';
@@ -401,4 +571,61 @@ function notifyWarn(message: string) {
 	if (getConfig().get<boolean>('enableNotifications')) {
 		vscode.window.showWarningMessage(message);
 	}
+}
+
+function repoIsReady(repoPath: string): boolean {
+	if (!fs.existsSync(path.join(repoPath, '.git'))) {
+		return false;
+	}
+	try {
+		execSync('git rev-parse --is-inside-work-tree', {
+			cwd: repoPath,
+			stdio: 'pipe'
+		});
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+function updateRemote(context: vscode.ExtensionContext): boolean {
+	const repoPath = getRepoPath(context);
+	const repoUrl = getConfig().get<string>('repoUrl', '').trim();
+
+	if (!repoUrl) {
+		return false;
+	}
+
+	try {
+		execSync(
+			`git remote set-url origin "${repoUrl}"`,
+			{
+				cwd: repoPath,
+				stdio: 'pipe'
+			}
+		);
+
+		notifyInfo('PulseGit repository updated.');
+		return true;
+	} catch (e: any) {
+		const msg = e.stderr?.toString() || e.message;
+		notifyWarn(classifyGitError(msg));
+		return false;
+	}
+}
+
+function syncSnapshotsToRepo(context: vscode.ExtensionContext) {
+	const snapshots = path.join(getSnapshotsPath(context), 'activity');
+	const repoActivity = path.join(getRepoPath(context), 'activity');
+
+	if (!fs.existsSync(snapshots)) {
+		return;
+	}
+
+	fs.mkdirSync(repoActivity, { recursive: true });
+
+	fs.cpSync(snapshots, repoActivity, {
+		recursive: true,
+		force: true
+	});
 }
