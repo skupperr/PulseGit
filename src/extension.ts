@@ -357,6 +357,14 @@ async function commitAndPush(repoPath: string, context: any) {
 		const { stdout } = await execAsync('git status --porcelain', { cwd: repoPath });
 		if (!stdout.trim()) { return; }
 
+		try {
+			await execAsync('git pull --rebase', {
+				cwd: repoPath
+			});
+		} catch {
+			// Ignore if remote is empty
+		}
+
 		await execAsync('git add .', { cwd: repoPath });
 		await execAsync('git commit -m "activity: coding snapshot"', { cwd: repoPath });
 
